@@ -1,6 +1,7 @@
 name: build & run tests (NIX)
 
 on:
+  workflow_dispatch:
   push:
     branches: [ master ]
   pull_request:
