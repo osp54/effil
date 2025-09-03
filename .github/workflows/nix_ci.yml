@@ -13,35 +13,47 @@ jobs:
       fail-fast: false
       matrix:
         build-type: [Release] # Debug
-        lua: ["lua 5.1", "lua 5.2", "lua 5.3", "luajit 2.0"]
+        lua: ["5.1", "5.2", "5.3", "luajit-2.0"]
         os: ["macos-latest", "ubuntu-latest"]
         include:
         - os: macos-latest
           macos_build_target: 10.0
     runs-on: ${{ matrix.os }}
+    env:
+      # keep macOS deployment target availability (set to empty on non-macOS)
+      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.macos_build_target || '' }}
     steps:
     - uses: actions/checkout@v2
       with:
         submodules: recursive
-    - uses: actions/setup-python@v2
+
+    # install/build Lua (placed into $GITHUB_WORKSPACE/.lua)
+    - name: Install Lua
+      uses: leafo/gh-actions-lua@v11
       with:
-        python-version: '3.8'
-    - name: Setup env
-      env:
-        MACOSX_DEPLOYMENT_TARGET: ${{ matrix.macos_build_target }}
+        luaVersion: ${{ matrix.lua }}
+
+    # install LuaRocks (placed into $GITHUB_WORKSPACE/.luarocks) and configure env
+    - name: Install LuaRocks
+      uses: leafo/gh-actions-luarocks@v5
+
+    - name: Show Lua versions
       run: |
-        pip install hererocks
-        hererocks lua-pkg --${{ matrix.lua }} -rlatest
-        source ${{github.workspace}}/lua-pkg/bin/activate
+        echo "Lua binary: $(which lua || echo 'not found')"
+        lua -v
+        luarocks --version
 
     - name: Configure CMake && build
       run: |
-        cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{matrix.build-type}} -DLUA_INCLUDE_DIR="${{github.workspace}}/lua-pkg/include"
+        cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{matrix.build-type}} -DLUA_INCLUDE_DIR="${{github.workspace}}/.lua/include"
         cmake --build ${{github.workspace}}/build --config ${{matrix.build-type}}
 
     - name: Test
       working-directory: ${{github.workspace}}/build
       env:
         STRESS: 1
+      run: |
+        ${{github.workspace}}/.lua/bin/lua ../tests/lua/run_tests
+
       run: |
         ${{github.workspace}}/lua-pkg/bin/lua ../tests/lua/run_tests
