@@ -54,6 +54,3 @@ jobs:
         STRESS: 1
       run: |
         ${{github.workspace}}/.lua/bin/lua ../tests/lua/run_tests
-
-      run: |
-        ${{github.workspace}}/lua-pkg/bin/lua ../tests/lua/run_tests
